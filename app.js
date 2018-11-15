@@ -30,6 +30,7 @@ server.listen(port, (err)=> {
     console.log('server is listening on -->', port);
 });
 
+
 app.post('/coroutinesignUp', controller.coroutinesignUp);
 app.post('/auto', controller.Auto);
 app.post('/signupWaterfall', controller.signupWaterfall)

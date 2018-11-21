@@ -1,86 +1,85 @@
-var Promise = require("bluebird");
-var async = require("async");
-
+const Promise = require("bluebird");
+const async = require("async");
 
 exports.coroutinesignUp = coroutinesignUp;
 exports.signupWaterfall = signupWaterfall;
 exports.Auto = Auto;
 exports.Awaitsignup = Awaitsignup;
 exports.promise = promise;
+exports.setImmediate = setImmediate;
 
 function coroutinesignUp(req, res) {
-  var name = req.body.name;
-  var email = req.body.email;
-  var password = req.body.password;
-  var phone = req.body.phone;
+  const name = req.body.name;
+  const email = req.body.email;
+  const password = req.body.password;
+  const phone = req.body.phone;
 
   Promise.coroutine(function*() {
-      var result = yield findUser(email);
-      if(result && result.length > 0){
-          var response = {
-              message: "User Already exist",
-              status: 400
-            };
-            res.send(JSON.stringify(response));
-        }   
-        var Obj = {
-          email: email,
-          password: password,
-          name: name,
-          phone: phone
-        };
-   var insert = yield insertIntoTable(Obj);
-    var response = {
-        message: "User Registered Successfully",
-        status: 200
+    let result = yield findUser(email);
+    if (result && result.length > 0) {
+      let response = {
+        message: "User Already exist",
+        status: 400
       };
       res.send(JSON.stringify(response));
-  })().then((result) => {
-    console.log("done");
-    },(error) => {
+    }
+    let Obj = {
+      email: email,
+      password: password,
+      name: name,
+      phone: phone
+    };
+    let insert = yield insertIntoTable(Obj);
+    let response = {
+      message: "User Registered Successfully",
+      status: 200
+    };
+    res.send(JSON.stringify(response));
+  })().then(
+    result => {
+      console.log("done");
+    },
+    error => {
       console.log(error);
-      var response = {
+      let response = {
         message: "Something went wrong",
         status: 400
       };
       res.send(JSON.stringify(response));
-    });
+    }
+  );
 }
 
 function signupWaterfall(req, res) {
-  var name = req.body.name;
-  var email = req.body.email;
-  var password = req.body.password;
+  const name = req.body.name;
+  const email = req.body.email;
+  const password = req.body.password;
 
-  async.waterfall([
+  async.waterfall(
+    [
       function(cb) {
-        var sql = "SELECT email from users where email= ?";
-        connection.query(sql,email,function(err, result) {
-            if (err) {
-                cb(err);
-            }
+        let sql = "SELECT email from users where email= ?";
+        connection.query(sql, email, function(err, result) {
+          if (err) {
+            cb(err);
+          } else if (result && result.length > 0) {
+            let response = {
+              message: "User Already exist",
+              status: 400
+            };
+            res.send(JSON.stringify(response));
+          } else {
             cb(null, result);
-          });
-      },
-      function(result, cb) {
-        if(result && result.length > 0){
-            console.log("Email already exits...");
-            var response = {
-                message: "User Already exist",
-                status: 400
-              };
-          res.send(JSON.stringify(response));   
-        } else {
-          cb(null);
-        }
+          }
+        });
       },
       function(cb) {
-        var Obj =[email,password,name,phone];
-        var insert = "INSERT into users (email,password,name,phone) values ?";
+        let Obj = [email, password, name, phone];
+        let insert = "INSERT into users (email,password,name,phone) values ?";
         connection.query(insert, Obj, function(err, data) {
           if (err) {
             cb(err);
-        }
+          }
           cb(null, data);
         });
       }
@@ -88,173 +87,149 @@ function signupWaterfall(req, res) {
     function(err, result) {
       if (err) {
         console.log("error", err);
-        var response = {
-            message: "Something went wrong",
-            status: 400
-          };
-          res.send(JSON.stringify(response));
-      }else {
-      var response = {
-        message: "User Registered Successfully",
-        status: 200
-      };
-      res.send(JSON.stringify(response));
-    }
+        let response = {
+          message: "Something went wrong",
+          status: 400
+        };
+        res.send(JSON.stringify(response));
+      } else {
+        let response = {
+          message: "User Registered Successfully",
+          status: 200
+        };
+        res.send(JSON.stringify(response));
+      }
     }
   );
 }
 
 function Auto(req, res) {
-  var email = req.body.email;
-  var password = req.body.password;
-  var flag =0, data;
-  async.auto({
-    f1: function(cb) {
-      var sql = "SELECT * FROM users WHERE email = ? AND password = ? ";
-      connection.query(sql, [email, password], function(error,result) {
-        if (error) {
-          var response = {
-            message: "Something went wrong",
-            status: 400
-          };
-          res.send(JSON.stringify(response));
-        }else if(result && result.length > 0){
-          flag =1;
-          cb(flag)
+  async.auto(
+    {
+      f1: function(cb) {
+        setTimeout(function() {
+          console.log("Takes 3 seconds");
+          cb(null, 1);
+        }, 3000);
+      },
+      f2: function(cb) {
+        // independent  will execute in parallel
+        setTimeout(function() {
+          console.log("Takes 2 seconds");
+          cb(null, 2);
+        }, 2000);
+      },
+      f3: ["f1","f2",function(results, cb) {
+          //dependent on other function
+          setTimeout(function() {
+            console.log("1st func. value is " + JSON.stringify(results.f1)
+            ); //1
+            cb(null, 3);
+          }, 0);
         }
-        else{
-          flag =0;
-          cb(flag)
-        }
-      });
+      ]
     },
-    f2:['f1',function(cb, result) {
-      if(result.f1 ==1){
-        data =[];
-        cb();
+    function(err, result) {
+      if (err) {
+        res.send(err);
+      } else {
+        res.send(result);
       }
-      var response = {
-        "message": "Email exists",
-        "status": 201,
-    };
-    res.send(JSON.stringify(response)); 
-}]
-},function (err,response){
-    if(err){
-        res.send(JSON.stringify(err))
-    }else {
-        res.send(JSON.stringify({
-            "message": "successfull",    
-            "status":200,
-            "data": data  
-        }))
     }
-})
+  );
 }
 
 async function Awaitsignup(req, res) {
-  var name = req.body.name;
-  var email = req.body.email;
-  var password = req.body.password;
+  const name = req.body.name;
+  const email = req.body.email;
+  const password = req.body.password;
 
   try {
-    var fetch = await fetchData(email, password);
+    let fetch = await fetchData(email, password);
     if (fetch) {
-      var response = {
-        "message": "Email Already exist",
-        "status": 400,
-    };
-    res.send(JSON.stringify(response));
+      let response = {
+        message: "Email Already exist",
+        status: 400
+      };
+      res.send(JSON.stringify(response));
     }
-    var Obj = {
+    let Obj = {
       name: name,
       email: email,
       password: password
     };
-    var insert = await insertIntoTable(obj);
+    let insert = await insertIntoTable(obj);
     if (insert.affectedRows == 1) {
-      var response = {
-        "message": "Successfully inserted",
-        "status": 200,
-    };
-    res.send(JSON.stringify(response)); 
+      let response = {
+        message: "Successfully inserted",
+        status: 200
+      };
+      res.send(JSON.stringify(response));
     }
   } catch (error) {
     console.log(error);
-    var response = {
-      "message": "something went wrong",
-      "status": 400,
-  };
-  res.send(JSON.stringify(response));
+    let response = {
+      message: "something went wrong",
+      status: 400
+    };
+    res.send(JSON.stringify(response));
   }
 }
 
 function promise(req, res) {
-  var email = req.body.email;
-  var password = req.body.password;
-  var name = req.body.name;
-  var phone = req.body.phone;
- var flag =0;
-  async.series([
-      function(cb) {
-          Promise.coroutine(function*() {
-            var fetch = yield fetchData(email,password);
-            if (fetch && fetch.length> 0) {
-              return flag ==1;
-            }
-          })().then((result)=> {
-            console.log("done")
-            },(error)=>{
-              cb(null, error);
-            });
-      },
-      function(cb) {
-        if(flag == 0){
-        Promise.coroutine(function*() {
-          var data = {
-            email: email,
-            password: password,
-            name : name,
-            phone : phone
-        };
-      var insert = yield insertIntoTable(data);
-      cb();
-        })().then((result)=> {
-          console.log("done")
-        },(error)=>{
-          cb(null, error);
-        });
+  const promise = new Promise((resolve, reject) => {
+    const collection = db.collection("user");
+    let data = collection.find({}).sort({ id: 1 }).limit(5).toArray();
+    if (data.length != 5) {
+      resolve(data);
+    } else {
+      reject(data);
     }
-    else{
-      cb();
-    }
-  }],
-    function(error, results) {
-      if (error) {
-        var response = {
-          "message": "something went wrong",
-          "status": 400,
-      };
-      res.send(JSON.stringify(response));
-      }
-      else {
-      var response = {
-        "message": "Successfully",
-        "status": 200,
-    };
-    res.send(JSON.stringify(response));
-    }
-  })
+  });
+
+  promise
+    .then(function(results) {
+      res.send(result);
+    })
+    .catch(function(err) {
+      console.log("error");
+      res.send(err);
+    });
 }
 
+/*
+  
+  setImmediate solves the  problem i.e.  when nextTick fn is called at the end of 
+  the current operation and then calling it recursively can lead to blocking the
+  event loop from continuing so, by firing it in the check phase of the event loop, 
+  allowing event loop to continue normally.
+  */
 
-
+function setImmediate() {
+  function set(iteration) {
+    if (iteration === 10) {
+      return res.send(JSON.stringify({
+        message: Success,
+        status: 200,
+        data: []
+      }));
+    }
+    setImmediate(() => {
+      console.log(`setImmediate iteration: ${iteration}`);
+      set(iteration + 1); // Recursive call
+    });
+    process.nextTick(() => {
+      console.log(`nextTick iteration: ${iteration}`);
+    });
+  }
+  set(0);
+}
 
 function insertIntoTable(Obj) {
   return new Promise((resolve, reject) => {
-    var sql = `INSERT INTO user values ?`;
+    let sql = `INSERT INTO user values ?`;
     connection.query(sql, [Obj], function(error, result) {
-      console.log(">>>>>>>>>>>>>>>> ", error, result);
+      //console.log(">>>>>>>>>>>>>>>> ", error, result);
       if (error) {
         return reject(error);
       }
@@ -264,26 +239,26 @@ function insertIntoTable(Obj) {
 }
 
 function findUser(email) {
-    return new Promise((resolve, reject) => {
-      var sql = `SELECT * FROM user WHERE email = ?`;
-      connection.query(sql, email, function(error, result) {
-        console.log(">>>>>>>>>>>>>>>> ", error, result);
-        if (error) {
-          return reject(error);
-        }
-        return resolve(result);
-      });
+  return new Promise((resolve, reject) => {
+    let sql = `SELECT * FROM user WHERE email = ?`;
+    connection.query(sql, email, function(error, result) {
+      //console.log(">>>>>>>>>>>>>>>> ", error, result);
+      if (error) {
+        return reject(error);
+      }
+      return resolve(result);
     });
-  }
+  });
+}
 
-  function fetchData(email, password) {
-    return new Promise((resolve, reject) => {
-        var sql = ` SELECT * FROM users WHERE email = ? AND password = ? `;
-      connection.query(sql, [email, password], function(error,result) {
-        if (error) {
-          return reject(error);
-        }
-        return resolve(result);
-      });
+function fetchData(email, password) {
+  return new Promise((resolve, reject) => {
+    let sql = ` SELECT * FROM users WHERE email = ? AND password = ? `;
+    connection.query(sql, [email, password], function(error, result) {
+      if (error) {
+        return reject(error);
+      }
+      return resolve(result);
     });
-  }
+  });
+}

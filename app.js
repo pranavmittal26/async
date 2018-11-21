@@ -1,11 +1,17 @@
-var express = require("express");
-var app = express();
-var server = require("http").createServer(app);
-var _ = require("underscore");
-var mysql = require('mysql');
+const express = require("express");
+const app = express();
+const server = require("http").createServer(app);
+const _ = require("underscore");
+const mysql = require('mysql');
+const MongoClient = require('mongodb').MongoClient;
 
-var controller = require('./controller');
-
+const controller = require('./controller');
+const url = 'mongodb://localhost:27017';
+const dbname ='test';
+    MongoClient.connect(url, (err, client)=> {
+    console.log("COnnected database");
+    global.db = client.db(dbName);
+  });
 
 connection = mysql.createConnection({
     host : "localhost",
@@ -22,7 +28,7 @@ connection.connect(function (err) {
     }
 });
 
-var port = process.env.PORT || 4500;
+const port = process.env.PORT || 4500;
 server.listen(port, (err)=> {
     if (err) {
         console.log(err);
@@ -30,8 +36,9 @@ server.listen(port, (err)=> {
     console.log('server is listening on -->', port);
 });
 
+
 app.post('/coroutinesignUp', controller.coroutinesignUp);
-app.post('/auto', controller.Auto);
+app.get('/auto', controller.Auto);
 app.post('/signupWaterfall', controller.signupWaterfall)
 app.post('/Awaitsignup', controller.Awaitsignup);
-app.post('/promise', controller.promise);
+app.get('/promise', controller.promise);
